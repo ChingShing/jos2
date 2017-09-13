@@ -46,6 +46,24 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+    TRAPHANDLER_NOEC(entry0,T_DIVIDE);
+    TRAPHANDLER_NOEC(entry1,T_DEBUG);
+    TRAPHANDLER_NOEC(entry2,T_NMI);
+    TRAPHANDLER_NOEC(entry3,T_BRKPT);
+    TRAPHANDLER_NOEC(entry4,T_OFLOW);
+    TRAPHANDLER_NOEC(entry5,T_BOUND);
+    TRAPHANDLER_NOEC(entry6,T_ILLOP);
+    TRAPHANDLER_NOEC(entry7,T_DEVICE);
+    TRAPHANDLER(entry8,T_DBLFLT);
+    TRAPHANDLER(entry10,T_TSS);
+    TRAPHANDLER(entry11,T_SEGNP);
+    TRAPHANDLER(entry12,T_STACK);
+    TRAPHANDLER(entry13,T_GPFLT);
+    TRAPHANDLER(entry14,T_PGFLT);
+    TRAPHANDLER_NOEC(entry16,T_FPERR);
+    TRAPHANDLER(entry17,T_ALIGN);
+    TRAPHANDLER_NOEC(entry18,T_MCHK);
+    TRAPHANDLER_NOEC(entry19,T_SIMDERR);
 
 
 
@@ -56,9 +74,35 @@ sysenter_handler:
 /*
  * Lab 3: Your code here for system call handling
  */
+    pushl %esi
+    pushl %edi
+    pushl %ebx
+    pushl %ecx
+    pushl %edx
+    pushl %eax
+    movw $GD_KD, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    call syscall
+    movw $GD_UD, %dx
+    movw %dx, %ds
+    movw %dx, %es
+    movl %ebp, %ecx
+    movl (%ebp), %edx
+    sysexit
+
 
 
 /*
  * Lab 3: Your code here for _alltraps
  */
-
+.func _alltraps
+_alltraps:
+    pushl %ds
+    pushl %es
+    pushal
+    movw $GD_KD, %ax
+    movw %ax, %ds
+    movw %ax, %es
+    pushl %esp
+    call trap

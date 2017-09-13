@@ -21,6 +21,7 @@ sys_cputs(const char *s, size_t len)
 	// Destroy the environment if not.
 
 	// LAB 3: Your code here.
+	user_mem_assert(curenv,(void *)s,len,PTE_U|PTE_P);
 
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
@@ -73,11 +74,14 @@ sys_map_kernel_page(void* kpage, void* va)
 	return r;
 }
 
+extern void region_alloc(struct Env *e, void *va, size_t len);
 static int
 sys_sbrk(uint32_t inc)
 {
 	// LAB3: your code sbrk here...
-	return 0;
+	region_alloc(curenv, (void*)(curenv->env_va_end - inc), inc);
+	return curenv->env_va_end;
+	//return 0;
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -87,7 +91,32 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
+	int32_t ret = -E_INVAL;
+	switch(syscallno)
+	{
+		case SYS_cputs:
+			sys_cputs((char*)a1, a2);
+			break;
+		case SYS_cgetc:
+			ret = sys_cgetc();
+			break;
+		case SYS_getenvid:
+			ret = sys_getenvid();
+			break;
+		case SYS_env_destroy:
+			ret = sys_env_destroy(a1);
+			break;
+		case SYS_map_kernel_page:
+			ret = sys_map_kernel_page((void *) a1, (void *)a2);
+			break;
+		case SYS_sbrk:
+			cprintf("kern/syscall.c: syscall(): SYS_sbrk\n");
+			ret = sys_sbrk(a1);
+			break;
+		default: break;
+	}
+	return ret;
 
-	panic("syscall not implemented");
+	//panic("syscall not implemented");
 }
 

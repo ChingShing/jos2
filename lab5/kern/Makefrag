@@ -81,7 +81,11 @@ KERN_BINFILES +=	user/idle \
 KERN_BINFILES +=	user/testfile \
 			user/writemotd \
 			user/icode \
-			fs/fs
+			fs/fs\
+			user/test_p3 \
+			user/test_p2 \
+			user/test_p1 \
+			user/test_p0
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

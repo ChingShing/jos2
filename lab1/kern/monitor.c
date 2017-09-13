@@ -24,6 +24,8 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "time","Display time",mon_time},
+	{ "backtrace","Stack backtrace",mon_backtrace},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -53,6 +55,30 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	cprintf("  end    %08x (virt)  %08x (phys)\n", end, end - KERNBASE);
 	cprintf("Kernel executable memory footprint: %dKB\n",
 		(end-entry+1023)/1024);
+	return 0;
+}
+
+int mon_time(int argc, char **argv, struct Trapframe *tf)
+{
+	if(argc==1)
+	{
+		cprintf("Usage: time [command]\n");
+		return 0;
+	}
+	int i=0;
+	while(i<NCOMMANDS)
+	{
+		if(strcmp(argv[1],commands[i].name)==0)
+		{
+			unsigned long long time1=read_tsc();
+			commands[i].func(argc-1,argv+1,tf);
+			unsigned long long time2=read_tsc();
+			cprintf("%s cycles: %llu\n",argv[1],time2-time1);
+			return 0;
+		}
+		i+=1;
+	}
+	cprintf("Unknown command\n",argv[1]);
 	return 0;
 }
 
@@ -89,13 +115,32 @@ start_overflow(void)
     char *pret_addr;
 
 	// Your code here.
-    
+	pret_addr=(char*)(read_pretaddr());
+	void (*funcp)()=do_overflow;
+	uint32_t funcaddr1=((uint32_t)funcp)+3;
+	char* funcaddr=(char*)(&funcaddr1);
+	int i=0;
+	while(i<4)
+	{
+		int j=*funcaddr;
+		j=j&0xff;
+		memset(str, 0xd, j);
+		str[j]='\0';
+		cprintf("%s%n",str,pret_addr);
+		funcaddr+=1;
+		pret_addr+=1;
+		i+=1;
+	}
 
-
+	//uint32_t *addr=(uint32_t*)read_pretaddr();
+	//void (*funcp)=do_overflow;
+	//*addr=((uint32_t)funcp)+3;
+	//cprintf("%08x\n",*((uint32_t*)read_pretaddr()));
+	//cprintf("%08x\n",funcaddr1);
 }
 
 void
-overflow_me(void)
+__attribute__((noinline)) overflow_me(void)
 {
         start_overflow();
 }
@@ -104,8 +149,31 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
-    overflow_me();
-    cprintf("Backtrace success\n");
+	int ebp=read_ebp();
+	int eip=0;
+	cprintf("Stack backtrace:\n");
+	while(ebp!=0)
+	{
+		int *ebpptr=(int*)ebp;
+		eip=*(ebpptr+1);
+		cprintf("  eip %08x  ebp %08x  args",eip,ebp);
+		int i=0;//= =! Actually I prefer for(int i=0;i<5;++i)
+		while(i<5)
+		{
+			cprintf(" %08x",*(ebpptr+2+i));
+			++i;
+		}
+		cprintf("\n");
+		struct Eipdebuginfo eipinfo;
+		if(debuginfo_eip(eip, &eipinfo)==0)
+		{
+			cprintf("	 %s:%d: %s+%d\n",eipinfo.eip_file,eipinfo.eip_line,eipinfo.eip_fn_name,eip-eipinfo.eip_fn_addr);;;
+		}
+
+		ebp=*ebpptr;
+	}
+	overflow_me();
+	cprintf("Backtrace success\n");
 	return 0;
 }
 

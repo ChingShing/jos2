@@ -1,7 +1,5 @@
 #include <inc/mmu.h>
 
-
-
 # Start the CPU: switch to 32-bit protected mode, jump into C.
 # The BIOS loads this code from the first sector of the hard disk into
 # memory at physical address 0x7c00 and starts executing in real mode

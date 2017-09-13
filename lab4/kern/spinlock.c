@@ -55,7 +55,8 @@ holding(struct spinlock *lock)
 	return lock->locked && lock->cpu == thiscpu;
 #else
 	//LAB 4: Your code here
-	panic("ticket spinlock: not implemented yet");
+	return lock->own != lock->next && lock->cpu == thiscpu;
+	//panic("ticket spinlock: not implemented yet");
 
 #endif
 }
@@ -68,7 +69,8 @@ __spin_initlock(struct spinlock *lk, char *name)
 	lk->locked = 0;
 #else
 	//LAB 4: Your code here
-
+	lk->own=0;
+	lk->next=0;
 #endif
 
 #ifdef DEBUG_SPINLOCK
@@ -95,8 +97,12 @@ spin_lock(struct spinlock *lk)
 	// reordered before it. 
 	while (xchg(&lk->locked, 1) != 0)
 		asm volatile ("pause");
+	//cprintf("CPU %d: lock kernel\n", cpunum());
 #else
 	//LAB 4: Your code here
+	int own = atomic_return_and_add(&lk->next, 1);
+	while(atomic_return_and_add(&lk->own, 0)!= own);
+	asm volatile("pause");
 
 #endif
 
@@ -146,8 +152,10 @@ spin_unlock(struct spinlock *lk)
 	// after a store. So lock->locked = 0 would work here.
 	// The xchg being asm volatile ensures gcc emits it after
 	// the above assignments (and after the critical section).
+	//cprintf("CPU %d release kernel lock\n",thiscpu->cpu_id);
 	xchg(&lk->locked, 0);
 #else
 	//LAB 4: Your code here
+	atomic_return_and_add(&(lk->own), 1);
 #endif
 }

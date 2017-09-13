@@ -7,6 +7,12 @@
 #include <inc/trap.h>
 #include <inc/memlayout.h>
 
+//LAB4 priority
+#define PRIORITY_3 0x3
+#define PRIORITY_2 0x2
+#define PRIORITY_1 0x1
+#define PRIORITY_0 0x0
+
 typedef int32_t envid_t;
 
 // An environment ID 'envid_t' has three parts:
@@ -52,7 +58,12 @@ struct Env {
 	enum EnvType env_type;		// Indicates special system environments
 	unsigned env_status;		// Status of the environment
 	uint32_t env_runs;		// Number of times environment has run
+
 	int env_cpunum;			// The CPU that the env is running on
+
+
+	// LAB3: might need code here for implementation of sbrk
+	uint32_t env_va_end;
 
 	// Address space
 	pde_t *env_pgdir;		// Kernel virtual address of page dir
@@ -66,6 +77,9 @@ struct Env {
 	uint32_t env_ipc_value;		// Data value sent to us
 	envid_t env_ipc_from;		// envid of the sender
 	int env_ipc_perm;		// Perm of page mapping received
+	
+	//LAB4 priority
+	uint32_t env_priority;
 
 	// LAB3: might need code here for implementation of sbrk
 

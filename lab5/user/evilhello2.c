@@ -34,6 +34,16 @@ sgdt(struct Pseudodesc* gdtd)
 }
 
 // Invoke a given function pointer with ring0 privilege, then return to ring3
+char addr[PGSIZE];
+struct Segdesc* gdt;
+struct Segdesc* entry;
+struct Segdesc old;
+void evil_helper(){
+	evil();
+	*entry = old;
+	asm volatile("leave\n\t");
+	asm volatile("lret");
+}
 void ring0_call(void (*fun_ptr)(void)) {
     // Here's some hints on how to achieve this.
     // 1. Store the GDT descripter to memory (sgdt instruction)
@@ -49,6 +59,20 @@ void ring0_call(void (*fun_ptr)(void)) {
     //        file if necessary.
 
     // Lab3 : Your Code Here
+	struct Pseudodesc p1;
+	sgdt(&p1);
+	int ret = sys_map_kernel_page((void *)p1.pd_base, (void *)addr);
+
+	uint32_t base = (uint32_t)(PGNUM(addr)<<PTXSHIFT);
+	uint32_t offset = PGOFF(p1.pd_base);
+	gdt = (struct Segdesc*)(base+offset);
+
+	uint32_t index = GD_UD >> 3;
+	entry = gdt + index;
+	old = *entry;
+
+	SETCALLGATE(*((struct Gatedesc*)entry), GD_KT, evil_helper, 3);
+	asm volatile("lcall $0x20, $0");
 }
 
 void

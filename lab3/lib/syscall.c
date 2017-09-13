@@ -16,6 +16,10 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		 "pushl %%edi\n\t"
 				 
                  //Lab 3: Your code here
+		"pushl $1f\n\t"
+		"movl %%esp, %%ebp\n\t"
+		"sysenter\n\t"
+		"1: addl $0x4, %%esp\n\t"
 
                  "popl %%edi\n\t"
                  "popl %%esi\n\t"
@@ -30,7 +34,8 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
                    "d" (a1),
                    "c" (a2),
                    "b" (a3),
-                   "D" (a4)
+                   "D" (a4),
+                   "S" (a5)
                  : "cc", "memory");
 
 

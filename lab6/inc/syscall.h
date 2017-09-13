@@ -23,6 +23,11 @@ enum {
 
 	SYS_sbrk,
 	SYS_time_msec,
+	SYS_env_set_priority,
+	SYS_exec,
+	SYS_transmit,
+	SYS_receive,
+	SYS_getmac,
 	NSYSCALLS
 };
 

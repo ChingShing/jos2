@@ -7,6 +7,36 @@ static inline int32_t
 syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
 {
 	int32_t ret;
+	/*asm volatile("pushl %%ecx\n\t"
+		 "pushl %%edx\n\t"
+	         "pushl %%ebx\n\t"
+		 "pushl %%esp\n\t"
+		 "pushl %%ebp\n\t"
+		 "pushl %%esi\n\t"
+		 "pushl %%edi\n\t"
+				 
+                 //Lab 3: Your code here
+		"pushl $1f\n\t"
+		"movl %%esp, %%ebp\n\t"
+		"sysenter\n\t"
+		"1: addl $0x4, %%esp\n\t"
+
+                 "popl %%edi\n\t"
+                 "popl %%esi\n\t"
+                 "popl %%ebp\n\t"
+                 "popl %%esp\n\t"
+                 "popl %%ebx\n\t"
+                 "popl %%edx\n\t"
+                 "popl %%ecx\n\t"
+                 
+                 : "=a" (ret)
+                 : "a" (num),
+                   "d" (a1),
+                   "c" (a2),
+                   "b" (a3),
+                   "D" (a4),
+                   "S" (a5)
+                 : "cc", "memory");*/
 	asm volatile("pushl %%ecx\n\t"
 		 "pushl %%edx\n\t"
 	         "pushl %%ebx\n\t"
@@ -16,6 +46,10 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		 "pushl %%edi\n\t"
 				 
                  //Lab 3: Your code here
+		 "movl %%esp,%%ebp\n\t"
+                 "leal 1f, %%esi\n\t"
+                 "sysenter\n\t"
+                 "1:\n\t"
 
                  "popl %%edi\n\t"
                  "popl %%esi\n\t"
@@ -85,7 +119,15 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 int
 sys_page_map(envid_t srcenv, void *srcva, envid_t dstenv, void *dstva, int perm)
 {
-	return syscall(SYS_page_map, 1, srcenv, (uint32_t) srcva, dstenv, (uint32_t) dstva, perm);
+	//return syscall(SYS_page_map, 1, srcenv, (uint32_t) srcva, dstenv, (uint32_t) dstva, perm);
+	//edit on lab4 exercise 6
+	uint32_t arglist[5];
+	arglist[0] = (uint32_t) srcenv;
+	arglist[1] = (uint32_t) srcva;
+	arglist[2] = (uint32_t) dstenv;
+	arglist[3] = (uint32_t) dstva;
+	arglist[4] = (uint32_t) perm;
+	return syscall(SYS_page_map, 1, (uint32_t)arglist, 0, 0, 0, 0);
 }
 
 int
@@ -126,3 +168,8 @@ sys_sbrk(uint32_t inc)
 	 return syscall(SYS_sbrk, 0, (uint32_t)inc, (uint32_t)0, 0, 0, 0);
 }
 
+int
+sys_env_set_priority(envid_t envid, int priority)
+{
+	return syscall(SYS_env_set_priority, 1, envid, priority, 0, 0, 0);
+}

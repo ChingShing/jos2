@@ -21,6 +21,9 @@ enum {
 	SYS_ipc_recv,
 
 	SYS_sbrk,
+	//LAB4 challenge priority
+	SYS_env_set_priority,
+
 	NSYSCALLS
 };
 

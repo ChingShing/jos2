@@ -58,6 +58,26 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+extern void entry0();
+extern void entry1();
+extern void entry2();
+extern void entry3();
+extern void entry4();
+extern void entry5();
+extern void entry6();
+extern void entry7();
+extern void entry8();
+extern void entry10();
+extern void entry11();
+extern void entry12();
+extern void entry13();
+extern void entry14();
+extern void entry16();
+extern void entry17();
+extern void entry18();
+extern void entry19();
+
+extern void sysenter_handler();
 
 void
 trap_init(void)
@@ -65,8 +85,33 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, entry0, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, entry1, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, entry2, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, entry3, 3);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, entry4, 0);
+	SETGATE(idt[T_BOUND], 0, GD_KT, entry5, 0);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, entry6, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, entry7, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, entry8, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, entry10, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, entry11, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, entry12, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, entry13, 0);
+ 	SETGATE(idt[T_PGFLT], 0, GD_KT, entry14, 0);
+  	SETGATE(idt[T_FPERR], 0, GD_KT, entry16, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, entry17, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, entry18, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, entry19, 0);
 
 	// Per-CPU setup 
+	__asm__ __volatile__("wrmsr" 
+		: : "c" (0x174), "a" (GD_KT), "d" (0));
+	__asm__ __volatile__("wrmsr" 
+		: : "c" (0x175), "a" (KSTACKTOP), "d" (0));
+	__asm__ __volatile__("wrmsr" 
+		: : "c" (0x176), "a" (sysenter_handler), "d" (0));
+
 	trap_init_percpu();
 }
 
@@ -146,11 +191,22 @@ trap_dispatch(struct Trapframe *tf)
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
+	switch(tf->tf_trapno)
+	{
+		case T_PGFLT:
+			page_fault_handler(tf);
+			break;
+		case T_BRKPT:
+		case T_DEBUG:
+			monitor(tf);
+		default:
+			if (tf->tf_cs == GD_KT)
+				panic("unhandled trap in kernel");
+			else 
+			{
+				env_destroy(curenv);
+				return;
+			}
 	}
 }
 
@@ -201,7 +257,8 @@ page_fault_handler(struct Trapframe *tf)
 	fault_va = rcr2();
 
 	// Handle kernel-mode page faults.
-
+	if (!(tf->tf_cs & 0x3))
+		panic("PGFLT trapped in kernel\n");
 	// LAB 3: Your code here.
 
 	// We've already handled kernel-mode exceptions, so if we get here,

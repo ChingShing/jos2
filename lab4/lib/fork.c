@@ -25,6 +25,10 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+	if ((err & FEC_WR) == 0||(vpd[PDX(addr)] & PTE_P) == 0||(vpt[PGNUM(addr)] & PTE_COW) == 0)
+	{
+		panic("invalid parameter!\n");
+	}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -34,8 +38,19 @@ pgfault(struct UTrapframe *utf)
 	//   No need to explicitly delete the old page's mapping.
 
 	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+	r = sys_page_alloc(0, (void*)PFTEMP, PTE_U | PTE_W | PTE_P);
+	if (r < 0)
+	{
+		panic("sys_page_alloc failed: %e", r);
+	}
+	void* va = (void*)ROUNDDOWN(addr, PGSIZE);
+	memmove((void*)PFTEMP, va, PGSIZE);
+	r = sys_page_map(0, (void*)PFTEMP, 0, va, PTE_U | PTE_W | PTE_P);
+	if (r < 0)
+	{
+		panic("sys_page_map failed: %e", r);
+	}
+	//panic("pgfault not implemented");
 }
 
 //
@@ -55,7 +70,46 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	void* addr = (void*)(pn*PGSIZE);
+	if ((uint32_t)addr >= UTOP)
+	{
+		cprintf("lib/fork.c:duppage: duplicate page above UTOP!");
+		return -1;
+	}
+	if ((vpt[PGNUM(addr)] & PTE_P) ==0)
+	{
+		cprintf("lib/fork.c:duppage: page table not present!");
+		return -1;
+	}
+	if ((vpd[PDX(addr)] & PTE_P) == 0)
+	{
+		cprintf("[lib/fork.c duppage]: page directory not present!");
+		return -1;
+	}
+	if (vpt[PGNUM(addr)] & (PTE_W | PTE_COW)) 
+	{
+		r = sys_page_map(0, addr, envid, addr, PTE_U | PTE_P | PTE_COW);
+		if (r < 0) 
+		{
+			cprintf("lib/fork.c:duppage: sys_page_map failed1!\n");
+			return -1;
+		}
+		r = sys_page_map(0, addr, 0, addr, PTE_U | PTE_P | PTE_COW);
+		if (r < 0)
+		{
+			cprintf("lib/fork.c:duppage: sys_page_map failed2!\n");
+			return -1;
+		}
+	} else 
+	{
+		r = sys_page_map(0, addr, envid, addr, PTE_U | PTE_P);
+		if (r < 0) 
+		{
+			cprintf("lib/fork.c:duppage:sys_page_map failed3!\n", r);
+			return -1;
+		}
+	}
+	//panic("duppage not implemented");
 	return 0;
 }
 
@@ -79,7 +133,48 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	extern void _pgfault_upcall (void);
+	int i;
+	int pagei;
+	set_pgfault_handler(pgfault);
+	envid_t childid;
+	childid = sys_exofork();
+	if (childid < 0) 
+	{
+		panic("lib:fork.c:fork():fork does not success:%e",childid);
+	}
+	else if (childid == 0) 
+	{
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	for(pagei = UTEXT/PGSIZE; pagei < UTOP/PGSIZE; pagei++) 
+	{
+		if (pagei != (UXSTACKTOP-PGSIZE) / PGSIZE)
+		{
+			if (((vpd[pagei/NPTENTRIES] & PTE_P) != 0) && ((vpt[pagei] & PTE_P) != 0) && ((vpt[pagei] & PTE_U) != 0)) 
+			{
+				duppage(childid, pagei);
+			}
+		}
+	}
+	i = sys_page_alloc(childid,(void *)(UXSTACKTOP-PGSIZE),PTE_U|PTE_W|PTE_P);
+	if(i < 0)
+	{
+		panic("lib:fork.c:fork(): exception stack error %e\n",i);	
+	}
+	i = sys_env_set_pgfault_upcall(childid, (void *)_pgfault_upcall);
+	if(i < 0)
+	{
+		panic("lib:fork.c:fork(): pgfault_upcall error %e\n",i);
+	}
+	i = sys_env_set_status(childid,ENV_RUNNABLE);
+	if(i < 0)
+	{
+		panic("lib:fork.c:fork(): status error %e\n",i);
+	}
+	return childid;
+	//panic("fork not implemented");
 }
 
 // Challenge!

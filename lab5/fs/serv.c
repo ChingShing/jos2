@@ -215,7 +215,21 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	// Hint: Use file_read.
 	// Hint: The seek position is stored in the struct Fd.
 	// LAB 5: Your code here
-	panic("serve_read not implemented");
+	//panic("serve_read not implemented");
+	int r;
+	struct OpenFile *openfile1;
+	if ((r = openfile_lookup(envid, req->req_fileid, &openfile1)) < 0)
+	{
+		return r;
+	}
+
+	if ((r = file_read(openfile1->o_file, ret->ret_buf, MIN(req->req_n, PGSIZE), openfile1->o_fd->fd_offset)) < 0)
+	{
+		return r;
+	}
+
+	openfile1->o_fd->fd_offset += r;
+	return r;
 }
 
 // Write req->req_n bytes from req->req_buf to req_fileid, starting at
@@ -229,7 +243,21 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	//panic("serve_write not implemented");
+	int r;
+	struct OpenFile *openfile1;
+	if ((r = openfile_lookup(envid, req->req_fileid, &openfile1)) < 0)
+	{
+		return r;
+	}
+
+	if ((r = file_write(openfile1->o_file, req->req_buf, req->req_n, openfile1->o_fd->fd_offset)) < 0)
+	{
+		return r;
+	}
+
+	openfile1->o_fd->fd_offset += r;
+	return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
